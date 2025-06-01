@@ -6,7 +6,20 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 async function bootstrap() {
-  const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
+  // Create HTTP app for dummy port
+  const app = await NestFactory.create(AppModule);
+
+  // Health check endpoint
+  app.getHttpAdapter().get('/health', (req, res) => {
+    res.send('Question service is alive');
+  });
+
+  const PORT = process.env.PORT || 3001;
+  await app.listen(PORT);
+  console.log(`HTTP server running on port ${PORT}`);
+
+  // RabbitMQ microservice logic
+  const microservice = app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
     options: {
       urls: [process.env.RABBITMQ_URL!],
@@ -17,7 +30,8 @@ async function bootstrap() {
     },
   });
 
-  await app.listen();
-  console.log('Question microservice is listening...');
+  await app.startAllMicroservices();
+  console.log('RabbitMQ microservice is listening...');
 }
+
 bootstrap();
